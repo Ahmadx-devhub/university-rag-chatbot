@@ -1,4 +1,4 @@
-```python
+
 import os
 from pathlib import Path
 
@@ -13,9 +13,6 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
-# ==========================================
-# 1. CONFIGURATION
-# ==========================================
 
 load_dotenv()
 
@@ -33,13 +30,11 @@ DB_DIR = BASE_DIR / "chroma_db"
 COLLECTION_NAME = "university_documents"
 
 
-# ==========================================
-# 2. API KEY CONFIGURATION
-# ==========================================
+
 
 def get_secret(key):
 
-    # First check Streamlit Cloud secrets
+
     try:
         value = st.secrets.get(key)
         if value:
@@ -47,13 +42,9 @@ def get_secret(key):
     except Exception:
         pass
 
-    # Then check local .env
+   
     return os.getenv(key)
 
-
-# ==========================================
-# 3. LOAD EMBEDDING MODEL
-# ==========================================
 
 @st.cache_resource
 def get_embeddings():
@@ -63,9 +54,7 @@ def get_embeddings():
     )
 
 
-# ==========================================
-# 4. LOAD PDFs AND CREATE CHROMADB
-# ==========================================
+
 
 @st.cache_resource
 def get_vector_store():
@@ -78,7 +67,6 @@ def get_vector_store():
         persist_directory=str(DB_DIR)
     )
 
-    # Check whether the knowledge base already exists
     document_count = vector_store._collection.count()
 
     if document_count > 0:
@@ -87,7 +75,7 @@ def get_vector_store():
 
     st.info("First-time setup: Building university knowledge base...")
 
-    # Find PDFs
+  
     pdf_files = list(DATA_DIR.glob("*.pdf"))
 
     if not pdf_files:
@@ -98,7 +86,7 @@ def get_vector_store():
 
     documents = []
 
-    # Load PDF documents
+
     for pdf_file in pdf_files:
 
         loader = PyPDFLoader(str(pdf_file))
@@ -115,7 +103,7 @@ def get_vector_store():
 
         raise ValueError("No readable content found in PDF files.")
 
-    # Split documents into chunks
+   
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000,
         chunk_overlap=200
@@ -127,15 +115,12 @@ def get_vector_store():
 
         raise ValueError("No document chunks were generated.")
 
-    # Store chunks and embeddings in ChromaDB
+ 
     vector_store.add_documents(chunks)
 
     return vector_store
 
 
-# ==========================================
-# 5. LOAD GROQ LLM
-# ==========================================
 
 @st.cache_resource
 def get_llm():
@@ -157,25 +142,20 @@ def get_llm():
     )
 
 
-# ==========================================
-# 6. SESSION STATE
-# ==========================================
+
 
 if "messages" not in st.session_state:
 
     st.session_state.messages = []
 
 
-# ==========================================
-# 7. CHATBOT INTERFACE
-# ==========================================
 
 st.title("🎓 University Helpdesk Chatbot")
 
 st.caption("Ask anything about university documents.")
 
 
-# Initialize knowledge base
+
 try:
 
     vector_store = get_vector_store()
@@ -187,7 +167,7 @@ except Exception as e:
     st.stop()
 
 
-# Sidebar
+
 with st.sidebar:
 
     st.title("🎓 University Assistant")
@@ -205,9 +185,6 @@ with st.sidebar:
         st.rerun()
 
 
-# ==========================================
-# 8. DISPLAY CHAT HISTORY
-# ==========================================
 
 for message in st.session_state.messages:
 
@@ -216,9 +193,7 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 
-# ==========================================
-# 9. USER QUESTION
-# ==========================================
+
 
 question = st.chat_input("Ask your university-related question...")
 
@@ -243,13 +218,13 @@ if question:
 
                 llm = get_llm()
 
-                # Retrieve relevant documents
+               
                 docs = vector_store.similarity_search(
                     question,
                     k=4
                 )
 
-                # Build context
+              
                 context = ""
 
                 for i, doc in enumerate(docs):
@@ -266,7 +241,7 @@ Content: {doc.page_content}
 
 """
 
-                # Previous conversation
+                
                 history = ""
 
                 for msg in st.session_state.messages[-7:-1]:
@@ -275,7 +250,7 @@ Content: {doc.page_content}
 {msg['role']}: {msg['content']}
 """
 
-                # Build prompt
+            
                 prompt = f"""
 You are a University Helpdesk AI Assistant.
 
@@ -303,7 +278,7 @@ User Question:
 Answer:
 """
 
-                # Generate response
+            
                 response = llm.invoke(prompt)
 
                 answer = response.content
@@ -313,7 +288,7 @@ Answer:
 
                 st.markdown(answer)
 
-                # Display sources
+              
                 with st.expander("📚 View Sources"):
 
                     if docs:
@@ -345,7 +320,7 @@ Answer:
                 st.error(answer)
 
 
-    # Save assistant response
+   
     st.session_state.messages.append({
         "role": "assistant",
         "content": answer
